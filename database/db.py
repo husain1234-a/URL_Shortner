@@ -43,13 +43,16 @@ class Database:
         #     """,
         #         (original_url, short_code, expires_at),
         #     )
-        cursor.execute(
-            """
-                INSERT INTO urls (original_url, short_code, expires_at)
-                VALUES (?, ?, ?)
-            """,
-            (original_url, short_code, expires_at),
-        )
+        try:
+            cursor.execute(
+                """
+                    INSERT INTO urls (original_url, short_code, expires_at)
+                    VALUES (?, ?, ?)
+                """,
+                (original_url, short_code, expires_at),
+            )
+        except Exception as e:
+            print("Exception : ", e)
 
         conn.commit()
         conn.close()
@@ -71,3 +74,21 @@ class Database:
 
         conn.close()
         return result["original_url"] if result else None
+
+    def get_short_url(self, original_url):
+        conn = self.get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT short_code 
+            FROM urls 
+            WHERE original_url = ?
+        """,
+            ([original_url]),
+        )
+
+        result = cursor.fetchone()
+
+        conn.close()
+        return result["short_code"] if result else None

@@ -15,7 +15,12 @@ def index():
             return render_template("index.html")
 
         url_model = Database()
-        short_code = generate_short_code()
+        x = str(original_url)
+        if url_model.get_short_url(x) is None:
+            short_code = generate_short_code()
+        else:
+            short_code = url_model.get_short_url(original_url)
+
         url_model.create_short_url(original_url, short_code)
 
         short_url = url_for(
