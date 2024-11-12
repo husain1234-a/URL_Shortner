@@ -13,82 +13,64 @@ class Database:
         return conn
 
     def init_db(self):
-        conn = self.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS urls (
-                original_url TEXT PRIMARY KEY,
-                short_code TEXT UNIQUE NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL,
-                visits INTEGER DEFAULT 0
-            )
-        """
-        )
-        conn.commit()
-        conn.close()
-
-    def create_short_url(self, original_url, short_code):
-        conn = self.get_db_connection()
-        cursor = conn.cursor()
-        expires_at = datetime.now() + timedelta(days=Config.URL_EXPIRE_DAYS)
-        # if original_url.exists():
-        #     raise ValueError("URL already exists")
-        # else:
-        #     cursor.execute(
-        #         """
-        #         INSERT INTO urls (original_url, short_code, expires_at)
-        #         VALUES (?, ?, ?)
-        #     """,
-        #         (original_url, short_code, expires_at),
-        #     )
-        try:
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
             cursor.execute(
                 """
+                CREATE TABLE IF NOT EXISTS urls (
+                    original_url TEXT PRIMARY KEY,
+                    short_code TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            conn.commit()
+
+    def create_short_url(self, original_url, short_code):
+        expires_at = datetime.now() + timedelta(days=Config.URL_EXPIRE_DAYS)
+        try:
+            with self.get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
                     INSERT INTO urls (original_url, short_code, expires_at)
                     VALUES (?, ?, ?)
-                """,
-                (original_url, short_code, expires_at),
-            )
-        except Exception as e:
-            print("Exception : ", e)
-
-        conn.commit()
-        conn.close()
+                    """,
+                    (original_url, short_code, expires_at),
+                )
+                conn.commit()
+        except sqlite3.IntegrityError as e:
+            print(f"Error creating short URL: {e}")
+            raise ValueError("URL already exists")
+        except sqlite3.Error as e:
+            print(f"Error creating short URL: {e}")
+            raise
 
     def get_original_url(self, short_code):
-        conn = self.get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT original_url 
-            FROM urls 
-            WHERE short_code = ? AND expires_at > ?
-        """,
-            (short_code, datetime.now()),
-        )
-
-        result = cursor.fetchone()
-
-        conn.close()
-        return result["original_url"] if result else None
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT original_url
+                FROM urls
+                WHERE short_code = ? AND expires_at > ?
+                """,
+                (short_code, datetime.now()),
+            )
+            result = cursor.fetchone()
+            return result["original_url"] if result else None
 
     def get_short_url(self, original_url):
-        conn = self.get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT short_code 
-            FROM urls 
-            WHERE original_url = ?
-        """,
-            ([original_url]),
-        )
-
-        result = cursor.fetchone()
-
-        conn.close()
-        return result["short_code"] if result else None
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT short_code
+                FROM urls
+                WHERE original_url = ?
+                """,
+                (original_url,),
+            )
+            result = cursor.fetchone()
+            return result["short_code"] if result else None

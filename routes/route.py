@@ -8,6 +8,7 @@ main = Blueprint("main", __name__)
 
 @main.route("/", methods=["GET", "POST"])
 def index():
+    short_url = None
     if request.method == "POST":
         original_url = request.form["url"]
         if not is_valid_url(original_url):
@@ -15,8 +16,8 @@ def index():
             return render_template("index.html")
 
         url_model = Database()
-        x = str(original_url)
-        if url_model.get_short_url(x) is None:
+        # x = str(original_url)
+        if url_model.get_short_url(original_url) is None:
             short_code = generate_short_code()
         else:
             short_code = url_model.get_short_url(original_url)
@@ -28,7 +29,7 @@ def index():
         )
         return render_template("index.html", short_url=short_url)
 
-    return render_template("index.html")
+    return render_template("index.html", short_url="")
 
 
 @main.route("/<short_code>")
@@ -41,3 +42,9 @@ def redirect_to_url(short_code):
 
     flash("Invalid or expired URL")
     return redirect(url_for("main.index"))
+
+
+@main.after_request
+def after_request(response):
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
