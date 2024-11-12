@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="url-shortener">
+    <h1>URL Shortener</h1>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="error">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="url">Enter URL to shorten:</label>
+            <input type="url" id="url" name="url" required placeholder="https://example.com">
+        </div>
+        <button type="submit">Shorten URL</button>
+    </form>
+    
+    {% if short_url %}
+    <div class="result">
+        <p><strong>Your shortened URL:</strong></p>
+        <p><a href="{{ short_url }}" target="_blank">{{ short_url }}</a></p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+
