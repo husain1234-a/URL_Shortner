@@ -6,6 +6,7 @@ from config.settings import Config
 class Database:
     def __init__(self):
         self.db_path = Config.DATABASE
+        self.init_db()
 
     def get_db_connection(self):
         conn = sqlite3.connect(self.db_path)
@@ -24,6 +25,12 @@ class Database:
                     expires_at TIMESTAMP NOT NULL
                 )
                 """
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_original_url ON urls (original_url)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_short_code ON urls (short_code)"
             )
             conn.commit()
 
