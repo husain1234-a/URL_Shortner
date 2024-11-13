@@ -1,18 +1,31 @@
+import time
 import string
-import random
-from config.settings import Config
+import hashlib
 from database.db import Database
+from config.settings import Config
 
 
 def generate_short_code(length=None):
     if length is None:
         length = Config.SHORT_CODE_LENGTH
 
-    characters = string.ascii_letters + string.digits
+    def base62_encode(num):
+        chars = string.digits + string.ascii_uppercase + string.ascii_lowercase
+        base = len(chars)
+        result = ""
+        while num:
+            num, rem = divmod(num, base)
+            result = chars[rem] + result
+        return result or "0"
+
     url_model = Database()
 
     while True:
-        short_code = "".join(random.choices(characters, k=length))
+        timestamp = str(time.time()).encode("utf-8")
+        hash_object = hashlib.sha256(timestamp)
+        hash_hex = hash_object.hexdigest()
+        hash_int = int(hash_hex[:16], 16)
+        short_code = base62_encode(hash_int)[:length]
         conn = url_model.get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM urls WHERE short_code = ?", (short_code,))
@@ -21,4 +34,3 @@ def generate_short_code(length=None):
 
         if not exists:
             return short_code
-
