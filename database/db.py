@@ -11,6 +11,8 @@ class Database:
     def get_db_connection(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON")
         return conn
 
     def init_db(self):
@@ -19,7 +21,7 @@ class Database:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS urls (
-                    original_url TEXT PRIMARY KEY,
+                    original_url TEXT PRIMARY KEY,  -- Already creates an index
                     short_code TEXT UNIQUE NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     expires_at TIMESTAMP NOT NULL
@@ -27,18 +29,21 @@ class Database:
                 """
             )
             cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_original_url ON urls (original_url)"
-            )
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_short_code ON urls (short_code)"
+                """
+                CREATE INDEX IF NOT EXISTS idx_short_code ON urls 
+                (short_code, expires_at)
+                """
             )
             conn.commit()
 
     def create_short_url(self, original_url, short_code):
-        expires_at = datetime.now() + timedelta(days=Config.URL_EXPIRE_DAYS)
+        expires_at = datetime.utcnow() + timedelta(days=Config.URL_EXPIRE_DAYS)
         try:
             with self.get_db_connection() as conn:
                 cursor = conn.cursor()
+                if not original_url or not short_code:
+                    raise ValueError("URL and short code cannot be empty")
+
                 cursor.execute(
                     """
                     INSERT INTO urls (original_url, short_code, expires_at)
@@ -55,29 +60,50 @@ class Database:
             raise
 
     def get_original_url(self, short_code):
+        current_time = datetime.utcnow()
         with self.get_db_connection() as conn:
             cursor = conn.cursor()
+            if not short_code:
+                return None
+
             cursor.execute(
                 """
                 SELECT original_url
-                FROM urls
+                FROM urls INDEXED BY idx_short_code
                 WHERE short_code = ? AND expires_at > ?
                 """,
-                (short_code, datetime.now()),
+                (short_code, current_time),
             )
             result = cursor.fetchone()
             return result["original_url"] if result else None
 
     def get_short_url(self, original_url):
+        current_time = datetime.utcnow()
         with self.get_db_connection() as conn:
             cursor = conn.cursor()
+            if not original_url:
+                return None
+
             cursor.execute(
                 """
                 SELECT short_code
                 FROM urls
-                WHERE original_url = ?
+                WHERE original_url = ? AND expires_at > ?
                 """,
-                (original_url,),
+                (original_url, current_time),
             )
             result = cursor.fetchone()
             return result["short_code"] if result else None
+
+    def delete_expired_urls(self):
+        current_time = datetime.utcnow()
+        with self.get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DELETE FROM urls
+                WHERE expires_at <= ?
+                """,
+                (current_time,),
+            )
+            conn.commit()
