@@ -35,8 +35,9 @@ def index():
         try:
             db_model.create_short_url(original_url, short_code)
         except ValueError:
-            flash("This URL has already been shortened", "error")
-            return redirect(url_for("main.index"))
+            # flash("This URL has already been shortened", "error")
+            # return redirect(url_for("main.index"))
+            print("URL already exists")
 
         short_url = url_for(
             "main.redirect_to_url", short_code=short_code, _external=True
