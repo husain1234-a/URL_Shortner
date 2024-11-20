@@ -32,7 +32,7 @@ def generate_short_code(length=None):
         cursor = conn.cursor()
         cursor.execute(
             "SELECT 1 FROM urls INDEXED BY idx_short_code WHERE short_code = ? LIMIT 1",
-            (short_code,),
+            (short_code),
         )
         exists = cursor.fetchone() is not None
         conn.close()
